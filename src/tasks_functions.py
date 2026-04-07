@@ -61,6 +61,7 @@ def create_task(current_user_id) -> None:
             logger.info(f"Пользователь с id: {created_task.payload["user_id"]} создал новую задачу:")
             logger.info(created_task.log_message(detailed=False))
             logger.debug(created_task.log_message(detailed=True))
+            task_queue.add_task(created_task)
 
         else:
             task = source.get_task()

@@ -35,8 +35,7 @@ class Task:
     @property
     def summary(self) -> str:
         """Возвращает краткую сводку о состоянии задачи с иконкой успеха."""
-        success_icon = "✅" if self.is_on_time else "⏳"
-        return f"Task #{self.task_id} ({self.task_type})\t{self.status.upper()} {success_icon}"
+        return f"Task #{self.task_id} ({self.task_type})\t{self.status.upper()}"
 
     def __repr__(self) -> str:
         """Строковое представление объекта задачи."""

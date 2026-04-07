@@ -20,6 +20,9 @@ class TaskQueue:
     def __len__(self) -> int:
         return len(self._tasks_queue)
 
+    def __getitem__(self, index: int):
+        return self._tasks_queue[index]
+
     def __iter__(self) -> Iterator[Task]:
         return iter(self._tasks_queue)
 

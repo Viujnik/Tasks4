@@ -12,9 +12,9 @@ def tasks_creator():
             create_task(current_user_id)
 
         elif choice == 2:
-            task_type = input("Введите тип задачи, статус которой вы хотите изменить:\t")
+            status_type = input("Введите новый статус задачи:\t")
             task_id = input("Введите id задачи, статус которой вы хотите изменить:\t")
-            set_task_status(current_user_id, int(task_id), task_type)
+            set_task_status(current_user_id, int(task_id), status_type)
 
         elif choice == 3:
             task_num = int(input("Введите количество задач для получения:\t"))

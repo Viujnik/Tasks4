@@ -16,3 +16,9 @@ class TasksGiver(Protocol):
         ...
 
 
+@runtime_checkable
+class TaskHandler(Protocol):
+    """Интерфейс для обработчика задач из очереди."""
+
+    async def handle(self, task: Task) -> None:
+        ...

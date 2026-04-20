@@ -30,7 +30,7 @@ def get_task_payload() -> dict[str, str]:
     return payload
 
 
-def create_task(current_user_id) -> None:
+async def create_task(current_user_id) -> None:
     """
     Создает задачи, базовые настройки для которых выбирает пользователь.
     """
@@ -61,22 +61,22 @@ def create_task(current_user_id) -> None:
             logger.info(f"Пользователь с id: {created_task.payload["user_id"]} создал новую задачу:")
             logger.info(created_task.log_message(detailed=False))
             logger.debug(created_task.log_message(detailed=True))
-            task_queue.add_task(created_task)
+            await task_queue.add_task(created_task)
 
         else:
             task = source.get_task()
             logger.info(task.log_message(detailed=False))
             logger.debug(task.log_message(detailed=True))
-            task_queue.add_task(task)
+            await task_queue.add_task(task)
     except (TypeError, ValueError, LenError, StatusError) as e:
         logger.error(f"Ошибка валидации при создании задачи: {e}")
         print(f"Ошибка: {e}")
         return None
 
 
-def set_task_status(current_user_id, task_id: int, task_status: str):
+async def set_task_status(current_user_id, task_id: int, task_status: str):
     try:
-        for task in task_queue:
+        async for task in task_queue:
             if task.task_id == task_id:
                 task.status = task_status
                 logger.info(
@@ -85,10 +85,12 @@ def set_task_status(current_user_id, task_id: int, task_status: str):
         print(e)
 
 
-def get_left_tasks(current_user_id: str, task_num: int):
+async def get_left_tasks(current_user_id: str, task_num: int):
     count = 0
-    while task_queue and count < task_num:
+    while not task_queue.empty() and count < task_num:
         count += 1
+        task = await task_queue.get_task()
+        task_queue.task_done()
         logger.info(
             f"Пользователь с  id {current_user_id} удалил {count} левых задач из очереди")
-        print(task_queue.pop_left())
+        print(task)

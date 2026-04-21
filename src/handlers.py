@@ -1,25 +1,25 @@
 import asyncio
 import shlex
 import aiohttp
-from src.tasks_models import Task
-from src.tasks_functions import logger
+from src.models import Task
+from src.functions import logger
 
 
 class FileHandler:
     """Обработчик задачи, связанный с файлами."""
 
     async def handle(self, task: Task) -> None:
-        logger.info(f"FileHandler: обработка файловой задачи {task.task_id}")
+        logger.info(f"FileHandler: processing file task {task.task_id}")
         filename = task.payload.get("filename", "unknown")
         await asyncio.sleep(0.2)
-        logger.info(f"FileHandler: окончена обработка файла {filename}")
+        logger.info(f"FileHandler: finished processing file {filename}")
 
 
 class ConsoleHandler:
     """Обработчик задачи, связанный с консолью."""
 
-    async def handler(self, task: Task) -> None:
-        logger.info(f"ConsoleHandler: обработка консольной задачи {task.task_id}")
+    async def handle(self, task: Task) -> None:
+        logger.info(f"ConsoleHandler: processing console task {task.task_id}")
 
         command = task.payload.get("command", "top")
         args = shlex.split(command)
@@ -35,9 +35,9 @@ class ConsoleHandler:
 
         stdout, stderr = await process.communicate()
         if process.returncode == 0:
-            logger.info(f"Команда выполнена успешно: {stdout.decode()}")
+            logger.info(f"Command executed successfully: {stdout.decode()}")
         else:
-            logger.error(f"Команда завершилась ошибкой: {stderr.decode()}")
+            logger.error(f"Command failed: {stderr.decode()}")
 
 
 class APIHandler:
@@ -46,7 +46,7 @@ class APIHandler:
     async def handle(self, task: Task) -> None:
         url = task.payload.get("url", "https://httpbin.org/get")
         method = task.payload.get("HTTP_METHOD", "GET")
-        logger.info(f"APIHandler: обработка запроса: {method} {url}")
+        logger.info(f"APIHandler: processing request: {method} {url}")
         async with aiohttp.ClientSession() as session:
             async with session.request(method, url) as resp:
                 logger.info(f"Response status: {resp.status}")

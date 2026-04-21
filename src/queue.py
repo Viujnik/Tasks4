@@ -3,7 +3,7 @@ import datetime
 from asyncio import Queue, Lock
 from typing import Callable, List, Any, AsyncIterator, AsyncGenerator
 
-from src.tasks_models import Task
+from src.models import Task
 
 
 class TaskQueue:

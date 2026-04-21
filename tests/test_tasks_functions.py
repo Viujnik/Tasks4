@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock
-from src import tasks_functions
+from src import functions
 from src.queue import TaskQueue
 
 

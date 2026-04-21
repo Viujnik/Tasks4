@@ -1,6 +1,6 @@
 import datetime
 import random
-from src.tasks_models import Task
+from src.models import Task
 
 
 class FileSource:
@@ -31,7 +31,7 @@ class ConsoleSource:
         """Запрашивает команды у пользователя и генерирует консольную задачу."""
         now = datetime.datetime.now()
         return Task(
-            task_id=random.randint(1000, 9999), task_type="console", description="System command execution",
+            task_id=random.randint(1000, 9999), task_type="cli", description="System command execution",
             priority=random.randint(1, 5), status=random.choice(["created", "in_progress", "finished"]),
             deadline=now + datetime.timedelta(days=2),
             payload={

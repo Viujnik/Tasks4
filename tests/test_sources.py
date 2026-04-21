@@ -1,5 +1,5 @@
 from src.sources import FileSource, ConsoleSource, APISource
-from src.tasks_models import Task
+from src.models import Task
 
 
 def test_file_source_get_task():

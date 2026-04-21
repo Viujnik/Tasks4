@@ -1,17 +1,27 @@
 import pytest
 from unittest.mock import MagicMock
+
+from models import Task
 from src import functions
 from src.queue import TaskQueue
 
 
+@pytest.fixture
+async def task_queue() -> TaskQueue:
+    """Фикстура создаёт новую пустую очередь для каждого теста."""
+    return TaskQueue()
+
+
 @pytest.fixture(autouse=True)
-def clean_queue():
-    """Автоматически подменяет глобальную очередь на новую перед каждым тестом."""
-    tasks_functions.task_queue = TaskQueue()
-    yield
+def mock_logger(monkeypatch):
+    """Отключаем логирование во всех тестах."""
+    monkeypatch.setattr(functions.logger, "info", MagicMock())
+    monkeypatch.setattr(functions.logger, "debug", MagicMock())
+    monkeypatch.setattr(functions.logger, "warning", MagicMock())
+    monkeypatch.setattr(functions.logger, "error", MagicMock())
 
 
-def test_create_task_with_custom_fields(monkeypatch):
+async def test_create_task_with_custom_fields(monkeypatch, task_queue: TaskQueue):
     """Пользователь вводит все поля вручную и задача добавляется в очередь."""
     inputs = iter([
         "file", "y",  # тип и выбор ручного ввода
@@ -24,12 +34,10 @@ def test_create_task_with_custom_fields(monkeypatch):
         "4"  # priority
     ])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr(tasks_functions.logger, "info", MagicMock())
-    monkeypatch.setattr(tasks_functions.logger, "debug", MagicMock())
 
-    tasks_functions.create_task("user123")
-    assert len(tasks_functions.task_queue) == 1
-    task = tasks_functions.task_queue.pop_left()
+    await functions.create_task("user123", task_queue)
+    assert task_queue.qsize() == 1
+    task = await task_queue.get_task()
     assert task.task_id == 42
     assert task.description == "My task description"
     assert task.priority == 4
@@ -37,27 +45,25 @@ def test_create_task_with_custom_fields(monkeypatch):
     assert "user_id" in task.payload
 
 
-def test_create_task_from_source(monkeypatch):
+async def test_create_task_from_source(monkeypatch, task_queue: TaskQueue):
     """Автоматическая генерация задачи из источника."""
-    inputs = iter(["file", "n"])  # тип = file, выбор "n"
+    inputs = iter(["file", "n", "5"])  # тип = file, выбор "n"
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr(tasks_functions.logger, "info", MagicMock())
-    monkeypatch.setattr(tasks_functions.logger, "debug", MagicMock())
 
-    tasks_functions.create_task("user123")
-    assert len(tasks_functions.task_queue) == 1
-    task = tasks_functions.task_queue.pop_left()
+    await functions.create_task("user123", task_queue)
+    assert task_queue.qsize() == 5
+    task = await task_queue.get_task()
     assert task.task_type == "file"
 
 
-def test_create_task_with_unknown_type(monkeypatch):
+def test_create_task_with_unknown_type(monkeypatch, task_queue: TaskQueue):
     """Неизвестный тип задачи с предупреждением в лог."""
     monkeypatch.setattr("builtins.input", lambda _: "unknown")
-    tasks_functions.create_task("user123")
-    assert len(tasks_functions.task_queue) == 0
+    functions.create_task("user123", task_queue)
+    assert task_queue.qsize() == 0
 
 
-def test_create_task_validation_error(monkeypatch):
+def test_create_task_validation_error(monkeypatch, task_queue: TaskQueue):
     """Ошибка валидации с логом ошибки."""
     inputs = iter([
         "file", "y",
@@ -66,59 +72,70 @@ def test_create_task_validation_error(monkeypatch):
         "1", "shrt", "3"  # слишком короткое описание – вызов LenError
     ])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    tasks_functions.create_task("user123")
-    assert len(tasks_functions.task_queue) == 0
+    functions.create_task("user123", task_queue)
+    assert task_queue.qsize() == 0
 
 
-def test_set_task_status_success(monkeypatch):
+async def test_set_task_status_success(monkeypatch, task_queue: TaskQueue):
     """Успешное изменение статуса существующей задачи."""
-    inputs = iter(["file", "n"])
+    inputs = iter(["file", "n", "1"])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    monkeypatch.setattr(tasks_functions.logger, "info", MagicMock())
-    tasks_functions.create_task("user123")
+    await functions.create_task("user123", task_queue)
 
-    assert len(tasks_functions.task_queue) == 1
-    task_id = tasks_functions.task_queue[0].task_id
+    assert task_queue.qsize() == 1
+    task_id = (await task_queue.get_task()).task_id
+    task = await task_queue.find_by_id(task_id)
+    assert task is not None
 
-    tasks_functions.set_task_status("user123", task_id, "finished")
+    await functions.set_task_status("user123", task_id, "finished", task_queue)
 
-    updated = tasks_functions.task_queue.find_by_id(task_id)
+    updated = await task_queue.find_by_id(task_id)
     assert updated is not None
     assert updated.status == "finished"
 
 
-def test_set_task_status_not_found():
+async def test_set_task_status_not_found(task_queue: TaskQueue):
     """Попытка изменить статус несуществующей задачи не вызывает ошибок."""
-    tasks_functions.set_task_status("user", 999, "finished")
+    await functions.set_task_status("user", 999, "finished", task_queue)
 
 
-def test_get_left_tasks(monkeypatch, capsys):
+async def test_get_left_tasks(monkeypatch, capsys, task_queue: TaskQueue):
     """Извлечение первых N задач из очереди."""
     for _ in range(3):
-        inputs = iter(["file", "n"])
+        inputs = iter(["file", "n", "1"])
         monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-        tasks_functions.create_task("user")
-    assert len(tasks_functions.task_queue) == 3
+        await functions.create_task("user", task_queue)
+    assert task_queue.qsize() == 3
 
-    tasks_functions.get_left_tasks("user", 2)
-    assert len(tasks_functions.task_queue) == 1
+    await functions.get_left_tasks("user", 2, task_queue)
+    assert task_queue.qsize() == 1
 
 
-def test_get_left_tasks_more_than_available(monkeypatch, capsys):
+async def test_get_left_tasks_more_than_available(monkeypatch, capsys, task_queue: TaskQueue):
     """Запрос большего количества задач, чем есть в очереди."""
-    inputs = iter(["file", "n"])
+    inputs = iter(["file", "n", "1"])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    tasks_functions.create_task("user")
-    assert len(tasks_functions.task_queue) == 1
+    await functions.create_task("user", task_queue)
+    assert task_queue.qsize() == 1
 
-    tasks_functions.get_left_tasks("user", 5)
+    await functions.get_left_tasks("user", 5, task_queue)
     captured = capsys.readouterr()
     assert len(captured.out.strip().split('\n')) >= 1
-    assert len(tasks_functions.task_queue) == 0
+    assert task_queue.qsize() == 0
 
 
-def test_get_left_tasks_empty_queue(capsys):
+async def test_get_left_tasks_empty_queue(capsys, task_queue: TaskQueue):
     """Крайний случай: очередь пуста – ничего не печатается и не удаляется."""
-    tasks_functions.get_left_tasks("user", 3)
+    await functions.get_left_tasks("user", 3, task_queue)
     captured = capsys.readouterr()
     assert captured.out == ""
+
+async def test_set_status_after_finished(valid_task_data, task_queue: TaskQueue):
+    """Нельзя менять статус завершенной задаче"""
+    task = Task(**valid_task_data)
+    task.status = "finished"
+    await task_queue.add_task(task)
+    await functions.set_task_status("user123", task.task_id, "in_review", task_queue)
+    functions.logger.warning.assert_called_once()
+    args, _ = functions.logger.warning.call_args
+    assert 'User user123 tries to reopen finished task #123' == args[0]

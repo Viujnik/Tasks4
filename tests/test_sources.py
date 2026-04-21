@@ -18,7 +18,7 @@ def test_console_source_get_task(monkeypatch):
     monkeypatch.setattr("builtins.input", lambda _: "test_command")
     source = ConsoleSource()
     task = source.get_task()
-    assert task.task_type == "console"
+    assert task.task_type == "cli"
     assert task.payload["command"] == "test_command"
     assert task.payload["status"] in {"OK", "ERROR", "WARNING", "CRITICAL"}
 

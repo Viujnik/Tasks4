@@ -1,7 +1,7 @@
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
-from models import Task
+from src.models import Task
 from src import functions
 from src.queue import TaskQueue
 
@@ -56,14 +56,14 @@ async def test_create_task_from_source(monkeypatch, task_queue: TaskQueue):
     assert task.task_type == "file"
 
 
-def test_create_task_with_unknown_type(monkeypatch, task_queue: TaskQueue):
+async def test_create_task_with_unknown_type(monkeypatch, task_queue: TaskQueue):
     """Неизвестный тип задачи с предупреждением в лог."""
     monkeypatch.setattr("builtins.input", lambda _: "unknown")
-    functions.create_task("user123", task_queue)
+    await functions.create_task("user123", task_queue)
     assert task_queue.qsize() == 0
 
 
-def test_create_task_validation_error(monkeypatch, task_queue: TaskQueue):
+async def test_create_task_validation_error(monkeypatch, task_queue: TaskQueue):
     """Ошибка валидации с логом ошибки."""
     inputs = iter([
         "file", "y",
@@ -72,7 +72,7 @@ def test_create_task_validation_error(monkeypatch, task_queue: TaskQueue):
         "1", "shrt", "3"  # слишком короткое описание – вызов LenError
     ])
     monkeypatch.setattr("builtins.input", lambda _: next(inputs))
-    functions.create_task("user123", task_queue)
+    await functions.create_task("user123", task_queue)
     assert task_queue.qsize() == 0
 
 
@@ -130,12 +130,21 @@ async def test_get_left_tasks_empty_queue(capsys, task_queue: TaskQueue):
     captured = capsys.readouterr()
     assert captured.out == ""
 
+
 async def test_set_status_after_finished(valid_task_data, task_queue: TaskQueue):
     """Нельзя менять статус завершенной задаче"""
     task = Task(**valid_task_data)
     task.status = "finished"
     await task_queue.add_task(task)
-    await functions.set_task_status("user123", task.task_id, "in_review", task_queue)
-    functions.logger.warning.assert_called_once()
-    args, _ = functions.logger.warning.call_args
-    assert 'User user123 tries to reopen finished task #123' == args[0]
+
+    with patch("src.functions.logger") as mock_logger:
+        await functions.set_task_status(
+            current_user_id="user123",
+            task_id=task.task_id,
+            task_status="created",
+            task_queue=task_queue
+        )
+
+        mock_logger.warning.assert_called_once()
+        args, _ = mock_logger.warning.call_args
+        assert "user123 tries to reopen finished task #123" in args[0]

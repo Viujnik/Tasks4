@@ -1,6 +1,6 @@
 from typing import runtime_checkable, Protocol
 
-from src.tasks_models import Task
+from src.models import Task
 
 
 @runtime_checkable
@@ -16,3 +16,9 @@ class TasksGiver(Protocol):
         ...
 
 
+@runtime_checkable
+class TaskHandler(Protocol):
+    """Интерфейс для обработчика задач из очереди."""
+
+    async def handle(self, task: Task) -> None:
+        ...

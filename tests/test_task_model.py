@@ -1,6 +1,6 @@
 import pytest
 import datetime
-from src.tasks_models import Task
+from src.models import Task
 from src.validators.errors import LenError, StatusError
 
 

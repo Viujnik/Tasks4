@@ -1,6 +1,6 @@
 import pytest
 import datetime
-from src.tasks_models import Task
+from src.models import Task
 from src.queue import TaskQueue
 
 
@@ -19,7 +19,7 @@ def valid_task_data() -> dict:
 
 
 @pytest.fixture
-def sample_queue() -> TaskQueue:
+async def sample_queue() -> TaskQueue:
     """Очередь с несколькими предустановленными задачами."""
     queue = TaskQueue()
     for i in range(1, 4):
@@ -32,5 +32,5 @@ def sample_queue() -> TaskQueue:
             deadline=datetime.datetime.now() + datetime.timedelta(days=i),
             payload={}
         )
-        queue.add_task(task)
+        await queue.add_task(task)
     return queue

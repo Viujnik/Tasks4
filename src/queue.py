@@ -1,7 +1,7 @@
 import asyncio
 import datetime
 from asyncio import Queue, Lock
-from typing import Callable, List, Any, AsyncIterator, AsyncGenerator
+from typing import Callable, Any, AsyncIterator, AsyncGenerator
 
 from src.models import Task
 
@@ -13,7 +13,7 @@ class TaskQueue:
 
     def __init__(self) -> None:
         self._tasks_queue: Queue[Task] = Queue()
-        self._storage: List[Task] = []
+        self._storage: list[Task] = []
         self._lock: Lock = Lock()
 
     async def add_task(self, task: Task) -> None:
